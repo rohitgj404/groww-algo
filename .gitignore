@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+
+# Secrets
+.env
+.env.local
+
+# Runtime data
+data/*.db
+data/*.db-journal
+logs/*.log
+
+# OS junk
+.DS_Store
+Thumbs.db

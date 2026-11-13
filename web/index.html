@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>GrowwAlgo · Automated Trading</title>
+<link rel="stylesheet" href="/static/styles.css" />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='24' fill='%2306070B'/><path d='M24 68 L44 44 L58 58 L78 30' stroke='%232F8BFF' stroke-width='9' fill='none' stroke-linecap='round' stroke-linejoin='round'/><circle cx='78' cy='30' r='7' fill='%23FFA45C'/></svg>" />
+</head>
+<body>
+<div class="ambient ambient-blue"></div>
+<div class="ambient ambient-orange"></div>
+
+<header class="topbar">
+  <div class="brand">
+    <div class="brand-mark">
+      <svg viewBox="0 0 100 100" aria-hidden="true">
+        <path d="M22 70 L42 46 L56 60 L78 28" />
+        <circle cx="78" cy="28" r="7" />
+      </svg>
+    </div>
+    <div class="brand-text">
+      <h1>Groww<span>Algo</span></h1>
+      <p>Free data · Groww orders</p>
+    </div>
+  </div>
+
+  <div class="status-strip">
+    <span class="pill" id="statePill"><i class="dot"></i><span id="stateText">Connecting</span></span>
+    <span class="pill ghost" id="marketPill"><i class="dot"></i><span id="marketText">—</span></span>
+    <span class="pill ghost mono" id="clock">--:--:--</span>
+  </div>
+
+  <div class="headline-metrics">
+    <div class="metric">
+      <label>Equity</label>
+      <strong id="equityValue" class="mono">₹0.00</strong>
+    </div>
+    <div class="metric">
+      <label>Day P&amp;L</label>
+      <strong id="dayPnl" class="mono">₹0.00</strong>
+    </div>
+    <div class="metric">
+      <label>Cash free</label>
+      <strong id="cashValue" class="mono">₹0.00</strong>
+    </div>
+    <div class="metric hide-sm">
+      <label>Invested</label>
+      <strong id="investedValue" class="mono">₹0.00</strong>
+    </div>
+  </div>
+
+  <div class="headline-actions">
+    <button class="btn primary" id="btnRun"><span id="btnRunText">Start engine</span></button>
+    <button class="btn ghost" id="btnFlatten" title="Close every open position at market">Square off</button>
+  </div>
+</header>
+
+<main class="layout">
+  <!-- Positions -->
+  <section class="card positions-card">
+    <div class="card-head">
+      <div><h2>Open positions</h2><p class="sub">Stops and targets are managed automatically</p></div>
+      <div class="head-badges">
+        <span class="pill small" id="modeBadge">PAPER</span>
+        <span class="pill small ghost" id="feedBadge">FREE DATA</span>
+        <span class="pill small ghost" id="posCount">0 open</span>
+      </div>
+    </div>
+    <div class="stats-row">
+      <div><label>Session start</label><strong class="mono" id="statStart">₹0.00</strong></div>
+      <div><label>Realised today</label><strong class="mono" id="statRealised">₹0.00</strong></div>
+      <div><label>Unrealised</label><strong class="mono" id="statUnrealised">₹0.00</strong></div>
+      <div><label>Risk used</label><strong class="mono" id="statRisk">0 / 2</strong></div>
+      <div id="holdingsStat" hidden><label>Broker holdings</label><strong class="mono" id="statHoldings">₹0.00</strong></div>
+    </div>
+    <p class="holdings-note" id="holdingsNote" hidden></p>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Symbol</th><th class="num">Qty</th><th class="num">Entry</th><th class="num">LTP</th>
+            <th class="num">Stop</th><th class="num">Target</th><th class="num">P&amp;L</th>
+          </tr>
+        </thead>
+        <tbody id="positionsBody">
+          <tr class="empty-row"><td colspan="7">No open positions — the engine is waiting for a setup.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- Controls -->
+  <section class="card controls-card">
+    <div class="card-head">
+      <div><h2>Controls</h2><p class="sub">Everything the bot does is driven from here</p></div>
+    </div>
+
+    <div class="control-group">
+      <label class="group-label">Trading mode</label>
+      <div class="segmented" id="modeGroup">
+        <button data-mode="paper" class="seg active">Paper</button>
+        <button data-mode="live" class="seg">Live</button>
+      </div>
+      <p class="hint" id="modeHint">Paper fills at live prices from the free feed.</p>
+    </div>
+
+    <div class="control-group">
+      <label class="group-label">Risk profile</label>
+      <div class="segmented" id="riskGroup">
+        <button data-risk="conservative" class="seg">Low</button>
+        <button data-risk="balanced" class="seg active">Medium</button>
+        <button data-risk="aggressive" class="seg">High</button>
+      </div>
+      <ul class="limits" id="riskLimits"></ul>
+    </div>
+
+    <div class="control-group">
+      <label class="group-label">Watchlist</label>
+      <div class="chips" id="watchlist"></div>
+      <div class="inline-form">
+        <input id="symbolInput" placeholder="Add NSE symbol" maxlength="20" autocomplete="off" />
+        <button class="btn small" id="btnAddSymbol">Add</button>
+      </div>
+      <div class="scan-box">
+        <div class="source-row"><span>Last market scan</span><span id="scanMeta" class="mono">never</span></div>
+        <p class="hint" id="scanSummary">The bot scans every NSE stock and keeps the best tradeable uptrends.</p>
+        <button class="btn small ghost" id="btnScan">Rescan market</button>
+      </div>
+    </div>
+
+    <div class="control-group" id="capitalGroup">
+      <label class="group-label">Paper capital (₹)</label>
+      <div class="inline-form">
+        <input id="capitalInput" type="number" min="100" step="100" />
+        <button class="btn small ghost" id="btnApplyCapital">Apply</button>
+      </div>
+      <button class="link-btn" id="btnResetPaper">Reset paper account</button>
+    </div>
+
+    <div class="control-group">
+      <div class="source-row">
+        <span>Prices</span><span id="feedLabel" class="mono">—</span>
+      </div>
+      <div class="source-row">
+        <span>Orders</span><span id="execLabel" class="mono">—</span>
+      </div>
+      <p class="hint">Groww's free plan covers orders and portfolio; quotes come from a free public feed, so no subscription is needed.</p>
+    </div>
+  </section>
+
+  <!-- Signals -->
+  <section class="card signals-card">
+    <div class="card-head">
+      <div><h2>Live signals</h2><p class="sub" id="signalSub">Trend + RSI + breakout logic</p></div>
+    </div>
+    <p class="scan-note" id="scanNote">Scanning…</p>
+    <ul class="signal-list" id="signalList">
+      <li class="empty-row">Waiting for the first scan…</li>
+    </ul>
+  </section>
+
+  <!-- Trades -->
+  <section class="card trades-card">
+    <div class="card-head">
+      <div><h2>Trade log</h2><p class="sub">Net of brokerage, STT and DP charges</p></div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Time</th><th>Side</th><th>Symbol</th><th class="num">Qty</th><th class="num">Price</th><th class="num">P&amp;L</th><th>Reason</th></tr>
+        </thead>
+        <tbody id="tradesBody">
+          <tr class="empty-row"><td colspan="7">No trades yet.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- Activity -->
+  <section class="card activity-card">
+    <div class="card-head">
+      <div><h2>Activity</h2><p class="sub">Engine decisions and broker messages</p></div>
+    </div>
+    <ul class="activity-list" id="activityList"></ul>
+  </section>
+</main>
+
+<footer class="foot">
+  <p class="warn">
+    <strong>Risk notice:</strong> markets cannot produce guaranteed or constant daily earnings.
+    This bot manages risk with ATR stops, position caps, a daily loss limit and a per-symbol
+    cooldown — it does not remove market risk. On a ₹2,500 account, brokerage plus the ₹16.5 DP
+    charge on every delivery sell is a real cost, so the bot trades selectively rather than
+    constantly. Start in paper mode and review the realised P&amp;L before going live.
+  </p>
+  <p class="meta">GrowwAlgo v1.0 · <span id="lastUpdate">—</span> · <span id="errText"></span></p>
+</footer>
+
+<div class="toast-stack" id="toasts"></div>
+<script src="/static/app.js"></script>
+</body>
+</html>
